@@ -19,9 +19,33 @@ const Section = ({
 }: {
   children: React.ReactNode;
   className?: string;
-}) => (
-  <section className={`py-16 md:py-24 ${className}`.trim()}>{children}</section>
-);
+}) => <section className={`py-16 md:py-24 ${className}`.trim()}>{children}</section>;
+
+// Tailwind-safe: keep col-span classes as literal strings (no template interpolation)
+const colSpanClass = (span: number) => {
+  switch (span) {
+    case 12:
+      return "md:col-span-12";
+    case 8:
+      return "md:col-span-8";
+    case 7:
+      return "md:col-span-7";
+    case 6:
+      return "md:col-span-6";
+    case 5:
+      return "md:col-span-5";
+    case 4:
+      return "md:col-span-4";
+    case 3:
+      return "md:col-span-3";
+    case 2:
+      return "md:col-span-2";
+    case 1:
+      return "md:col-span-1";
+    default:
+      return "md:col-span-6";
+  }
+};
 
 /**
  * Full-bleed editorial spread. Handles odd counts with asymmetric rows.
@@ -34,9 +58,11 @@ const Section = ({
 const FullSpreadBreak = ({
   images,
   caption,
+  tone = "cream",
 }: {
   images: SpreadImage[];
   caption?: string;
+  tone?: "cream" | "sand" | "white";
 }) => {
   const spansFor = (n: number) => {
     if (n <= 1) return [12];
@@ -44,14 +70,16 @@ const FullSpreadBreak = ({
     if (n === 3) return [6, 3, 3];
     if (n === 4) return [6, 6, 6, 6];
     if (n === 5) return [7, 5, 4, 4, 4];
-    // fallback: balanced tiles
     return Array.from({ length: n }, (_, i) => (i === 0 ? 8 : 4));
   };
+
+  const bg =
+    tone === "sand" ? "bg-sand" : tone === "white" ? "bg-white" : "bg-cream";
 
   const spans = spansFor(images.length);
 
   return (
-    <section className="border-y border-line bg-cream">
+    <section className={`border-y border-line ${bg}`}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="py-10 md:py-14">
           {caption ? (
@@ -66,14 +94,14 @@ const FullSpreadBreak = ({
               return (
                 <figure
                   key={`${img.src}-${idx}`}
-                  className={`overflow-hidden border border-line bg-white md:col-span-${span}`}
+                  className={`overflow-hidden border border-line bg-white ${colSpanClass(span)}`}
                 >
                   <img
                     src={img.src}
                     alt={img.alt}
                     loading="lazy"
                     decoding="async"
-                    className="h-[220px] w-full object-cover sm:h-[260px] md:h-[320px]"
+                    className="h-[200px] w-full object-cover sm:h-[240px] md:h-[320px]"
                   />
                 </figure>
               );
@@ -88,16 +116,33 @@ const FullSpreadBreak = ({
 const Home = () => {
   const { openModal } = useEnquiry();
 
-  const servicesPreview = site.services.slice(0, 5);
-  const teamPreview = site.team.slice(0, 4);
-  const testimonialsPreview = site.testimonials.slice(0, 3);
+  const services = site.services ?? [];
+  const team = site.team ?? [];
+  const testimonials = site.testimonials ?? [];
+  const badges = site.badges ?? [];
+  const partner = site.partners?.[0];
 
-  const spreadA: SpreadImage[] = servicesPreview.map((s) => ({ src: s.image, alt: s.name }));
-  const spreadB: SpreadImage[] = [
-    { src: site.partners?.[0]?.images?.[0] ?? site.hero.image, alt: site.partners?.[0]?.name ?? "Partner venue" },
-    { src: teamPreview?.[0]?.image ?? site.hero.image, alt: teamPreview?.[0]?.name ?? "Team" },
-    { src: servicesPreview?.[0]?.image ?? site.hero.image, alt: servicesPreview?.[0]?.name ?? "Signature service" },
+  const servicesPreview = services.slice(0, 5);
+  const featuredService = servicesPreview[0] ?? services[0];
+  const secondaryServices = servicesPreview.slice(1);
+
+  // Spread images (odd-friendly)
+  const spreadHero: SpreadImage[] = [
+    { src: servicesPreview?.[0]?.image ?? site.hero.image, alt: servicesPreview?.[0]?.name ?? "Signature catering" },
+    { src: servicesPreview?.[1]?.image ?? site.hero.image, alt: servicesPreview?.[1]?.name ?? "Private dining" },
+    { src: servicesPreview?.[2]?.image ?? site.hero.image, alt: servicesPreview?.[2]?.name ?? "Wedding menus" },
   ];
+
+  const spreadMid: SpreadImage[] = [
+    { src: partner?.images?.[0] ?? site.hero.image, alt: partner?.name ?? "Partner venue" },
+    { src: team?.[0]?.image ?? site.hero.image, alt: team?.[0]?.name ?? "Chef team" },
+    { src: servicesPreview?.[3]?.image ?? site.hero.image, alt: servicesPreview?.[3]?.name ?? "Events & service" },
+    { src: servicesPreview?.[4]?.image ?? site.hero.image, alt: servicesPreview?.[4]?.name ?? "Canapés & details" },
+    { src: team?.[1]?.image ?? site.hero.image, alt: team?.[1]?.name ?? "Hospitality team" },
+  ];
+
+  const testimonialsPreview = testimonials.slice(0, 3);
+  const teamPreview = team.slice(0, 4);
 
   return (
     <div>
@@ -107,98 +152,141 @@ const Home = () => {
         image={site.hero.image}
       />
 
-      {/* HERO */}
-      <section className="relative min-h-[92vh] border-b border-line bg-cream">
+      {/* HERO (editorial split with brochure panel) */}
+      <section className="relative border-b border-line bg-cream">
         <div className="absolute inset-0">
           <img
             src={site.hero.image}
             alt={site.hero.title}
             className="h-full w-full object-cover"
             loading="eager"
-            decoding="sync"
-            fetchPriority="high"
+            decoding="async"
           />
         </div>
-
-        {/* Editorial wash + contrast layer */}
-        <div className="absolute inset-0 bg-gradient-to-b from-cream/55 via-cream/75 to-cream/95" />
+        <div className="absolute inset-0 bg-gradient-to-b from-ink/35 via-cream/55 to-cream/95" />
         <div className="absolute inset-0 bg-ink/10" />
 
-        <div className="relative mx-auto flex min-h-[92vh] max-w-7xl items-end px-4 pb-16 pt-28 sm:px-6 md:items-center md:py-24">
-          <div className="max-w-3xl border-l border-line pl-5 md:pl-8">
-            <p className="text-xs uppercase tracking-[0.4em] text-gold">
-              Premium catering • Cyprus
-            </p>
+        <div className="relative mx-auto max-w-7xl px-4 pb-16 pt-28 sm:px-6 md:pb-20 md:pt-32">
+          <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
+            <div className="lg:col-span-7">
+              <div className="border-l border-line pl-5 md:pl-8">
+                <p className="text-xs uppercase tracking-[0.4em] text-gold">
+                  Premium catering • Cyprus
+                </p>
 
-            <h1 className="mt-5 font-display text-4xl font-semibold text-ink sm:text-5xl md:text-6xl">
-              {site.hero.title}
-            </h1>
+                <h1 className="mt-5 font-display text-4xl font-semibold text-ink sm:text-5xl md:text-6xl">
+                  {site.hero.title}
+                </h1>
 
-            <p className="mt-5 max-w-2xl text-base text-ink/70 sm:text-lg">
-              {site.hero.subtitle}
-            </p>
+                <p className="mt-5 max-w-2xl text-base text-ink/75 sm:text-lg">
+                  {site.hero.subtitle}
+                </p>
 
-            {/* Brand cues */}
-            <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-[11px] uppercase tracking-[0.28em] text-ink/60">
-              <span className="inline-flex items-center gap-2">
-                <span className="h-1 w-1 bg-gold" /> Weddings
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <span className="h-1 w-1 bg-gold" /> Private villas
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <span className="h-1 w-1 bg-gold" /> Corporate & events
-              </span>
+                <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-[11px] uppercase tracking-[0.28em] text-ink/70">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-1 w-1 bg-gold" /> Weddings
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-1 w-1 bg-gold" /> Private villas
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-1 w-1 bg-gold" /> Corporate
+                  </span>
+                </div>
+
+                <div className="mt-10 flex flex-wrap gap-4">
+                  <button
+                    type="button"
+                    onClick={() => openModal()}
+                    className="rounded-none bg-gold px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:bg-gold/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  >
+                    {site.hero.primaryCta}
+                  </button>
+
+                  <Link
+                    to="/services"
+                    className="flex items-center gap-2 rounded-none border border-ink/30 bg-cream/70 px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:border-gold/60 hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  >
+                    {site.hero.secondaryCta} <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+              </div>
             </div>
 
-            <div className="mt-10 flex flex-wrap gap-4">
-              <button
-                type="button"
-                onClick={() => openModal()}
-                className="rounded-none bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:bg-gold/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-              >
-                {site.hero.primaryCta}
-              </button>
+            {/* Brochure panel */}
+            <div className="lg:col-span-5">
+              <div className="border border-line bg-white/85 p-7">
+                <Eyebrow>At a glance</Eyebrow>
 
-              <Link
-                to="/services"
-                className="flex items-center gap-2 rounded-none border border-ink/25 bg-cream/60 px-6 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:border-gold/60 hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-              >
-                {site.hero.secondaryCta} <ArrowRight className="h-4 w-4" />
-              </Link>
+                <div className="mt-6 grid gap-5">
+                  <div className="border border-line bg-cream p-5">
+                    <p className="text-xs uppercase tracking-[0.4em] text-muted">Menus</p>
+                    <p className="mt-2 text-sm text-ink/75">
+                      Seasonal, bespoke menus with refined plating and confident flavour.
+                    </p>
+                  </div>
+
+                  <div className="border border-line bg-cream p-5">
+                    <p className="text-xs uppercase tracking-[0.4em] text-muted">Service</p>
+                    <p className="mt-2 text-sm text-ink/75">
+                      Calm front-of-house, precise timing, and discreet coordination.
+                    </p>
+                  </div>
+
+                  <div className="border border-line bg-cream p-5">
+                    <p className="text-xs uppercase tracking-[0.4em] text-muted">Events</p>
+                    <p className="mt-2 text-sm text-ink/75">
+                      Weddings, villas, yachts, and private estates across Cyprus.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-7 border-t border-line pt-6">
+                  <button
+                    type="button"
+                    onClick={() => openModal()}
+                    className="w-full rounded-none bg-ink px-6 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-cream transition hover:bg-ink/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                  >
+                    Start an enquiry
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SIGNATURE BAR */}
+      {/* SPREAD BREAK (small “print insert”) */}
+      <FullSpreadBreak images={spreadHero} caption="Selected plates & moments" tone="white" />
+
+      {/* SIGNATURE STRIP (brand identity anchors) */}
       <section className="border-b border-line bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 md:py-12">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-14">
           <div className="grid gap-6 md:grid-cols-3">
             <div className="border border-line bg-cream p-6">
               <p className="text-xs uppercase tracking-[0.4em] text-muted">Cuisine</p>
               <p className="mt-2 text-sm text-ink/75">
-                Seasonal menus built around local ingredients and clean presentation.
+                Local ingredients, modern technique, clean presentation.
               </p>
             </div>
             <div className="border border-line bg-cream p-6">
-              <p className="text-xs uppercase tracking-[0.4em] text-muted">Service</p>
+              <p className="text-xs uppercase tracking-[0.4em] text-muted">Hospitality</p>
               <p className="mt-2 text-sm text-ink/75">
-                Calm, precise hospitality — from intimate dinners to large celebrations.
+                Warm service with premium standards — calm and precise.
               </p>
             </div>
             <div className="border border-line bg-cream p-6">
               <p className="text-xs uppercase tracking-[0.4em] text-muted">Production</p>
               <p className="mt-2 text-sm text-ink/75">
-                Seamless logistics across Cyprus venues, villas, and private estates.
+                Seamless logistics for villas, venues, yachts, and estates.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SERVICES */}
-      <Section>
+      {/* SERVICES (editorial: featured + index list) */}
+      <Section className="bg-cream">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div className="max-w-2xl">
@@ -207,7 +295,7 @@ const Home = () => {
                 A curated catering portfolio
               </h2>
               <p className="mt-4 max-w-xl text-sm text-muted md:text-base">
-                Every experience is tailored to your celebration, with elevated cuisine and seamless service.
+                Designed like a menu: clear sections, signature highlights, and a seamless flow.
               </p>
             </div>
 
@@ -219,66 +307,114 @@ const Home = () => {
             </Link>
           </div>
 
-          {/* Creative grid for odd counts (5): 6/3/3 then 6/6 on lg */}
-          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-12">
-            {servicesPreview.map((service, idx) => {
-              const span =
-                idx === 0 ? "lg:col-span-6" : idx === 1 || idx === 2 ? "lg:col-span-3" : "lg:col-span-6";
+          <div className="mt-10 grid gap-6 lg:grid-cols-12">
+            {/* Featured */}
+            {featuredService ? (
+              <article className="border border-line bg-white p-6 lg:col-span-7">
+                <div className="grid gap-6 md:grid-cols-12 md:items-stretch">
+                  <div className="md:col-span-7">
+                    <div className="aspect-[4/3] overflow-hidden border border-line bg-cream">
+                      <img
+                        src={featuredService.image}
+                        alt={featuredService.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  </div>
 
-              return (
-                <article
-                  key={service.id}
-                  className={`border border-line bg-white p-6 ${span}`}
+                  <div className="md:col-span-5">
+                    <p className="text-xs uppercase tracking-[0.4em] text-gold">Featured</p>
+                    <h3 className="mt-3 font-display text-2xl text-ink">{featuredService.name}</h3>
+                    <p className="mt-3 text-sm text-muted">{featuredService.description}</p>
+
+                    <div className="mt-6 border-t border-line pt-5">
+                      <div className="grid gap-3 text-[11px] uppercase tracking-[0.28em] text-ink/70">
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-1 w-1 bg-gold" /> Bespoke menu planning
+                        </span>
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-1 w-1 bg-gold" /> Staffing & service
+                        </span>
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-1 w-1 bg-gold" /> Presentation & detail
+                        </span>
+                      </div>
+
+                      <Link
+                        to="/services"
+                        className="mt-6 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-gold hover:text-ink"
+                      >
+                        Explore services <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ) : null}
+
+            {/* Index list */}
+            <aside className="border border-line bg-white p-6 lg:col-span-5">
+              <Eyebrow>Service index</Eyebrow>
+
+              <div className="mt-6 grid gap-4">
+                {secondaryServices.map((s) => (
+                  <div key={s.id} className="grid grid-cols-[88px_1fr] gap-4 border border-line bg-cream p-4">
+                    <div className="aspect-[4/3] overflow-hidden border border-line bg-white">
+                      <img
+                        src={s.image}
+                        alt={s.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-ink">{s.name}</p>
+                      <p className="mt-1 text-xs text-muted line-clamp-2">{s.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 border-t border-line pt-6">
+                <button
+                  type="button"
+                  onClick={() => openModal()}
+                  className="w-full rounded-none bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:bg-gold/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                 >
-                  <div className="aspect-[4/3] overflow-hidden border border-line bg-cream">
-                    <img
-                      src={service.image}
-                      alt={service.name}
-                      loading="lazy"
-                      decoding="async"
-                      width={960}
-                      height={720}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-
-                  <h3 className="mt-5 text-lg font-semibold text-ink">{service.name}</h3>
-                  <p className="mt-2 text-sm text-muted">{service.description}</p>
-
-                  <div className="mt-4">
-                    <Link
-                      to="/services"
-                      className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-gold hover:text-ink"
-                    >
-                      Explore <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
+                  Get a quote
+                </button>
+              </div>
+            </aside>
           </div>
         </div>
       </Section>
 
-      {/* FULL-SPREAD BREAK (odd-friendly) */}
-      <FullSpreadBreak images={spreadA} caption="Selected plates & moments" />
-
-      {/* PROOF / BADGES */}
-      <section className="border-b border-line bg-sand">
+      {/* PROOF / BADGES (clean, aligned) */}
+      <section className="border-y border-line bg-sand">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24">
-          <div className="grid gap-10 md:grid-cols-[1.2fr_1fr]">
+          <div className="grid gap-10 md:grid-cols-[1.2fr_1fr] md:items-start">
             <div>
               <Eyebrow>Premium proof</Eyebrow>
               <h2 className="mt-5 font-display text-3xl text-ink md:text-4xl">
-                Trusted by Cyprus&apos; finest venues
+                Trusted by Cyprus’ finest venues
               </h2>
               <p className="mt-4 max-w-xl text-sm text-muted md:text-base">
-                Our standards are recognized across Cyprus, from aviation to hospitality partners.
+                High standards, clear communication, and a calm service rhythm from start to finish.
               </p>
+
+              {/* Micro “brand identity” rail */}
+              <div className="mt-8 grid gap-3 border-l border-line pl-5 text-[11px] uppercase tracking-[0.28em] text-ink/70">
+                <span>• Tastings & menu design</span>
+                <span>• Staffed service & coordination</span>
+                <span>• Cyprus-wide logistics</span>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
-              {site.badges.map((badge) => (
+              {badges.map((badge) => (
                 <div key={badge.label} className="border border-line bg-white p-5">
                   <div className="flex items-center gap-4">
                     <div className="aspect-square w-16 overflow-hidden border border-line bg-cream">
@@ -287,8 +423,6 @@ const Home = () => {
                         alt={badge.label}
                         loading="lazy"
                         decoding="async"
-                        width={140}
-                        height={140}
                         className="h-full w-full object-cover"
                       />
                     </div>
@@ -301,7 +435,61 @@ const Home = () => {
         </div>
       </section>
 
-      {/* TEAM + TESTIMONIALS */}
+      {/* SPREAD BREAK (odd-friendly 5-tile) */}
+      <FullSpreadBreak images={spreadMid} caption="Venue, team, signature" tone="cream" />
+
+      {/* PROCESS (magazine steps) */}
+      <Section className="bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="grid gap-10 lg:grid-cols-12 lg:items-start">
+            <div className="lg:col-span-5">
+              <Eyebrow>The process</Eyebrow>
+              <h2 className="mt-5 font-display text-3xl text-ink md:text-4xl">
+                Built for calm planning
+              </h2>
+              <p className="mt-4 max-w-md text-sm text-muted md:text-base">
+                Clear steps, decisive guidance, and a service plan that makes the day feel effortless.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => openModal()}
+                className="mt-8 rounded-none bg-gold px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:bg-gold/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+              >
+                Start planning
+              </button>
+            </div>
+
+            <div className="lg:col-span-7">
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="border border-line bg-cream p-6">
+                  <p className="text-xs uppercase tracking-[0.4em] text-muted">01</p>
+                  <p className="mt-3 text-sm font-semibold text-ink">Enquiry & vision</p>
+                  <p className="mt-2 text-sm text-muted">
+                    Guest count, style, venue — we map the experience and the flow.
+                  </p>
+                </div>
+                <div className="border border-line bg-cream p-6">
+                  <p className="text-xs uppercase tracking-[0.4em] text-muted">02</p>
+                  <p className="mt-3 text-sm font-semibold text-ink">Menu design</p>
+                  <p className="mt-2 text-sm text-muted">
+                    A tailored menu with signature touches and clean presentation.
+                  </p>
+                </div>
+                <div className="border border-line bg-cream p-6">
+                  <p className="text-xs uppercase tracking-[0.4em] text-muted">03</p>
+                  <p className="mt-3 text-sm font-semibold text-ink">Event execution</p>
+                  <p className="mt-2 text-sm text-muted">
+                    Staffed service, timing, and coordination — delivered with calm.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* TEAM + TESTIMONIALS (tight, premium) */}
       <Section className="bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]">
@@ -311,7 +499,7 @@ const Home = () => {
                 Crafted by culinary leaders
               </h2>
               <p className="mt-4 max-w-xl text-sm text-muted md:text-base">
-                A Michelin-star led team blending local ingredients, modern technique, and refined hospitality.
+                A team that blends local ingredients, modern technique, and refined hospitality.
               </p>
 
               <div className="mt-10 grid gap-6 sm:grid-cols-2">
@@ -323,8 +511,6 @@ const Home = () => {
                         alt={member.name}
                         loading="lazy"
                         decoding="async"
-                        width={520}
-                        height={650}
                         className="h-full w-full object-cover"
                       />
                     </div>
@@ -342,13 +528,13 @@ const Home = () => {
               </h3>
 
               <div className="mt-8 grid gap-6">
-                {testimonialsPreview.map((testimonial) => (
-                  <div key={testimonial.name} className="border border-line bg-sand px-6 py-6">
-                    <p className="text-sm text-ink/80">“{testimonial.quote}”</p>
+                {testimonialsPreview.map((t) => (
+                  <div key={t.name} className="border border-line bg-sand px-6 py-6">
+                    <p className="text-sm text-ink/80">“{t.quote}”</p>
                     <div className="mt-5 flex items-center gap-3">
                       <img
-                        src={testimonial.image}
-                        alt={testimonial.name}
+                        src={t.image}
+                        alt={t.name}
                         loading="lazy"
                         decoding="async"
                         width={40}
@@ -356,9 +542,9 @@ const Home = () => {
                         className="h-10 w-10 border border-line object-cover"
                       />
                       <div>
-                        <p className="text-xs font-semibold text-ink">{testimonial.name}</p>
+                        <p className="text-xs font-semibold text-ink">{t.name}</p>
                         <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted">
-                          {testimonial.role}
+                          {t.role}
                         </p>
                       </div>
                     </div>
@@ -368,29 +554,27 @@ const Home = () => {
 
               <Link
                 to="/reviews"
-                className="mt-8 inline-flex text-xs font-semibold uppercase tracking-[0.22em] text-gold hover:text-ink"
+                className="mt-8 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-gold hover:text-ink"
               >
-                Read more reviews
+                Read more reviews <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>
         </div>
       </Section>
 
-      {/* FULL-SPREAD BREAK (tight, simple) */}
-      <FullSpreadBreak images={spreadB} caption="Venue, team, signature" />
-
       {/* PARTNER HIGHLIGHT */}
-      <section className="border-b border-line bg-sand">
+      <section className="border-y border-line bg-sand">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24">
           <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr] lg:items-center">
             <div>
               <Eyebrow>Partner highlight</Eyebrow>
               <h2 className="mt-5 font-display text-3xl text-ink md:text-4xl">
-                {site.partners[0].name}
+                {partner?.name ?? "Featured venue partner"}
               </h2>
               <p className="mt-4 max-w-xl text-sm text-muted md:text-base">
-                {site.partners[0].story}
+                {partner?.story ??
+                  "We work closely with Cyprus’ finest venues to deliver seamless service, perfect timing, and an elevated guest experience."}
               </p>
 
               <Link
@@ -403,8 +587,8 @@ const Home = () => {
 
             <div className="overflow-hidden border border-line bg-white">
               <img
-                src={site.partners[0].images[0]}
-                alt={site.partners[0].name}
+                src={partner?.images?.[0] ?? site.hero.image}
+                alt={partner?.name ?? "Venue partner"}
                 loading="lazy"
                 decoding="async"
                 width={900}
