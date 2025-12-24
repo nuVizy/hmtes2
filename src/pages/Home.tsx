@@ -1,61 +1,56 @@
+// src/pages/Home.tsx
+import type { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import Seo from "../components/Seo";
 import { useEnquiry } from "../components/EnquiryContext";
 import { site } from "../content/site";
 
-type SpreadImage = { src: string; alt: string };
+type SpreadImage = { src: string; alt: string; caption?: string };
 
-const Eyebrow = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-center gap-4">
-    <p className="text-xs uppercase tracking-[0.4em] text-gold">{children}</p>
-    <span className="h-px flex-1 bg-line" />
-  </div>
+const Container = ({ children }: { children: ReactNode }) => (
+  <div className="mx-auto max-w-7xl px-4 sm:px-6">{children}</div>
+);
+
+const Hairline = ({ className = "" }: { className?: string }) => (
+  <div className={`h-px bg-line ${className}`.trim()} />
+);
+
+const Kicker = ({
+  label,
+  className = "",
+}: {
+  label: string;
+  className?: string;
+}) => (
+  <p
+    className={`text-[11px] uppercase tracking-[0.42em] ${
+      className || "text-ink/70"
+    }`.trim()}
+  >
+    {label}
+  </p>
 );
 
 const Section = ({
   children,
   className = "",
+  pad = "py-16 md:py-24",
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
-}) => <section className={`py-16 md:py-24 ${className}`.trim()}>{children}</section>;
-
-// Tailwind-safe: keep col-span classes as literal strings (no template interpolation)
-const colSpanClass = (span: number) => {
-  switch (span) {
-    case 12:
-      return "md:col-span-12";
-    case 8:
-      return "md:col-span-8";
-    case 7:
-      return "md:col-span-7";
-    case 6:
-      return "md:col-span-6";
-    case 5:
-      return "md:col-span-5";
-    case 4:
-      return "md:col-span-4";
-    case 3:
-      return "md:col-span-3";
-    case 2:
-      return "md:col-span-2";
-    case 1:
-      return "md:col-span-1";
-    default:
-      return "md:col-span-6";
-  }
-};
+  pad?: string;
+}) => <section className={`${pad} ${className}`.trim()}>{children}</section>;
 
 /**
- * Full-bleed editorial spread. Handles odd counts with asymmetric rows.
+ * Full-bleed editorial mosaic (no dynamic Tailwind class construction).
  * - 1: 12
  * - 2: 6 / 6
  * - 3: 6 / 3 / 3
  * - 4: 6 / 6 / 6 / 6
- * - 5: 7 / 5 (row 1), 4 / 4 / 4 (row 2)
+ * - 5: 7 / 5 then 4 / 4 / 4
  */
-const FullSpreadBreak = ({
+const EditorialMosaic = ({
   images,
   caption,
   tone = "cream",
@@ -64,85 +59,138 @@ const FullSpreadBreak = ({
   caption?: string;
   tone?: "cream" | "sand" | "white";
 }) => {
-  const spansFor = (n: number) => {
-    if (n <= 1) return [12];
-    if (n === 2) return [6, 6];
-    if (n === 3) return [6, 3, 3];
-    if (n === 4) return [6, 6, 6, 6];
-    if (n === 5) return [7, 5, 4, 4, 4];
-    return Array.from({ length: n }, (_, i) => (i === 0 ? 8 : 4));
+  const safe = (images ?? []).filter(Boolean).slice(0, 5);
+
+  const spansByCount: Record<number, string[]> = {
+    1: ["md:col-span-12"],
+    2: ["md:col-span-6", "md:col-span-6"],
+    3: ["md:col-span-6", "md:col-span-3", "md:col-span-3"],
+    4: ["md:col-span-6", "md:col-span-6", "md:col-span-6", "md:col-span-6"],
+    5: [
+      "md:col-span-7",
+      "md:col-span-5",
+      "md:col-span-4",
+      "md:col-span-4",
+      "md:col-span-4",
+    ],
   };
+
+  const spans = spansByCount[safe.length] ?? spansByCount[5];
 
   const bg =
     tone === "sand" ? "bg-sand" : tone === "white" ? "bg-white" : "bg-cream";
 
-  const spans = spansFor(images.length);
-
   return (
-    <section className={`border-y border-line ${bg}`}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+    <section className={`w-full ${bg}`.trim()}>
+      <Container>
         <div className="py-10 md:py-14">
           {caption ? (
             <div className="mb-6">
-              <p className="text-xs uppercase tracking-[0.4em] text-muted">{caption}</p>
+              <Kicker label={caption} className="text-muted" />
             </div>
           ) : null}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-12 md:gap-6">
-            {images.map((img, idx) => {
-              const span = spans[idx] ?? 6;
+            {safe.map((img, idx) => {
+              const span = spans[idx] ?? "md:col-span-4";
+              const tall =
+                safe.length >= 5 && idx === 0
+                  ? "md:h-[420px]"
+                  : safe.length >= 3 && idx === 0
+                    ? "md:h-[380px]"
+                    : "md:h-[320px]";
+
               return (
-                <figure
-                  key={`${img.src}-${idx}`}
-                  className={`overflow-hidden border border-line bg-white ${colSpanClass(span)}`}
-                >
+                <figure key={`${img.src}-${idx}`} className={`${span} overflow-hidden`}>
                   <img
                     src={img.src}
                     alt={img.alt}
                     loading="lazy"
                     decoding="async"
-                    className="h-[200px] w-full object-cover sm:h-[240px] md:h-[320px]"
+                    className={`h-[220px] w-full object-cover sm:h-[260px] ${tall}`}
                   />
+                  {img.caption ? (
+                    <figcaption className="mt-3 text-[11px] uppercase tracking-[0.28em] text-muted">
+                      {img.caption}
+                    </figcaption>
+                  ) : null}
                 </figure>
               );
             })}
           </div>
         </div>
-      </div>
+      </Container>
     </section>
   );
 };
+
+const StatRail = ({
+  items,
+}: {
+  items: Array<{ label: string; value: string }>;
+}) => (
+  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+    {items.map((s) => (
+      <div key={s.label} className="space-y-2">
+        <div className="text-2xl font-semibold text-ink">{s.value}</div>
+        <div className="text-[11px] uppercase tracking-[0.32em] text-muted">
+          {s.label}
+        </div>
+        <Hairline className="mt-3" />
+      </div>
+    ))}
+  </div>
+);
 
 const Home = () => {
   const { openModal } = useEnquiry();
 
   const services = site.services ?? [];
+  const partners = site.partners ?? [];
+  const badges = site.badges ?? [];
   const team = site.team ?? [];
   const testimonials = site.testimonials ?? [];
-  const badges = site.badges ?? [];
-  const partner = site.partners?.[0];
 
   const servicesPreview = services.slice(0, 5);
   const featuredService = servicesPreview[0] ?? services[0];
-  const secondaryServices = servicesPreview.slice(1);
+  const otherServices = servicesPreview.slice(1);
 
-  // Spread images (odd-friendly)
-  const spreadHero: SpreadImage[] = [
-    { src: servicesPreview?.[0]?.image ?? site.hero.image, alt: servicesPreview?.[0]?.name ?? "Signature catering" },
-    { src: servicesPreview?.[1]?.image ?? site.hero.image, alt: servicesPreview?.[1]?.name ?? "Private dining" },
-    { src: servicesPreview?.[2]?.image ?? site.hero.image, alt: servicesPreview?.[2]?.name ?? "Wedding menus" },
+  const partner0 = partners[0];
+  const partnerImg = partner0?.images?.[0] ?? site.hero.image;
+
+  // “Numbers” that are true without inventing claims
+  const stats = [
+    { label: "Experiences", value: `${services.length || servicesPreview.length || 0}` },
+    { label: "Team members", value: `${team.length || 0}` },
+    { label: "Partner badges", value: `${badges.length || 0}` },
+    { label: "Client notes", value: `${testimonials.length || 0}` },
   ];
 
-  const spreadMid: SpreadImage[] = [
-    { src: partner?.images?.[0] ?? site.hero.image, alt: partner?.name ?? "Partner venue" },
-    { src: team?.[0]?.image ?? site.hero.image, alt: team?.[0]?.name ?? "Chef team" },
-    { src: servicesPreview?.[3]?.image ?? site.hero.image, alt: servicesPreview?.[3]?.name ?? "Events & service" },
-    { src: servicesPreview?.[4]?.image ?? site.hero.image, alt: servicesPreview?.[4]?.name ?? "Canapés & details" },
-    { src: team?.[1]?.image ?? site.hero.image, alt: team?.[1]?.name ?? "Hospitality team" },
-  ];
+  const spreadA: SpreadImage[] = [
+    { src: site.hero.image, alt: site.hero.title, caption: "Feature" },
+    ...(servicesPreview[0]?.image
+      ? [{ src: servicesPreview[0].image, alt: servicesPreview[0].name, caption: "Signature" }]
+      : []),
+    ...(servicesPreview[1]?.image
+      ? [{ src: servicesPreview[1].image, alt: servicesPreview[1].name, caption: "Moment" }]
+      : []),
+    ...(partnerImg ? [{ src: partnerImg, alt: partner0?.name ?? "Venue", caption: "Venue" }] : []),
+    ...(team[0]?.image
+      ? [{ src: team[0].image, alt: team[0].name, caption: "Team" }]
+      : []),
+  ].slice(0, 5);
 
-  const testimonialsPreview = testimonials.slice(0, 3);
-  const teamPreview = team.slice(0, 4);
+  const spreadB: SpreadImage[] = [
+    ...(servicesPreview[2]?.image
+      ? [{ src: servicesPreview[2].image, alt: servicesPreview[2].name }]
+      : []),
+    ...(servicesPreview[3]?.image
+      ? [{ src: servicesPreview[3].image, alt: servicesPreview[3].name }]
+      : []),
+    ...(servicesPreview[4]?.image
+      ? [{ src: servicesPreview[4].image, alt: servicesPreview[4].name }]
+      : []),
+  ].slice(0, 3);
 
   return (
     <div>
@@ -152,37 +200,35 @@ const Home = () => {
         image={site.hero.image}
       />
 
-      {/* HERO (editorial split with brochure panel) */}
-      <section className="relative border-b border-line bg-cream">
+      {/* HERO — “feature story” */}
+      <section className="relative min-h-[92vh] bg-neutral-950 text-cream">
         <div className="absolute inset-0">
           <img
             src={site.hero.image}
             alt={site.hero.title}
             className="h-full w-full object-cover"
             loading="eager"
-            decoding="async"
+            decoding="sync"
+            fetchPriority="high"
           />
         </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-ink/35 via-cream/55 to-cream/95" />
-        <div className="absolute inset-0 bg-ink/10" />
+        <div className="absolute inset-0 bg-gradient-to-b from-neutral-950/45 via-neutral-950/50 to-neutral-950/85" />
+        <div className="absolute inset-0 bg-black/10" />
 
-        <div className="relative mx-auto max-w-7xl px-4 pb-16 pt-28 sm:px-6 md:pb-20 md:pt-32">
-          <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
-            <div className="lg:col-span-7">
-              <div className="border-l border-line pl-5 md:pl-8">
-                <p className="text-xs uppercase tracking-[0.4em] text-gold">
-                  Premium catering • Cyprus
-                </p>
-
-                <h1 className="mt-5 font-display text-4xl font-semibold text-ink sm:text-5xl md:text-6xl">
+        <div className="relative">
+          <Container>
+            <div className="flex min-h-[92vh] flex-col justify-end pb-14 pt-28 md:justify-center md:py-24">
+              <div className="max-w-3xl">
+                <Kicker label="Cyprus • premium catering" className="text-cream/75" />
+                <h1 className="mt-6 font-display text-4xl font-semibold leading-[1.02] text-cream sm:text-5xl md:text-6xl">
                   {site.hero.title}
                 </h1>
-
-                <p className="mt-5 max-w-2xl text-base text-ink/75 sm:text-lg">
+                <p className="mt-6 max-w-2xl text-base text-cream/80 sm:text-lg">
                   {site.hero.subtitle}
                 </p>
 
-                <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-[11px] uppercase tracking-[0.28em] text-ink/70">
+                {/* Category cues (editorial “deck”) */}
+                <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-[11px] uppercase tracking-[0.32em] text-cream/70">
                   <span className="inline-flex items-center gap-2">
                     <span className="h-1 w-1 bg-gold" /> Weddings
                   </span>
@@ -190,7 +236,7 @@ const Home = () => {
                     <span className="h-1 w-1 bg-gold" /> Private villas
                   </span>
                   <span className="inline-flex items-center gap-2">
-                    <span className="h-1 w-1 bg-gold" /> Corporate
+                    <span className="h-1 w-1 bg-gold" /> Corporate & events
                   </span>
                 </div>
 
@@ -198,356 +244,348 @@ const Home = () => {
                   <button
                     type="button"
                     onClick={() => openModal()}
-                    className="rounded-none bg-gold px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:bg-gold/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    className="rounded-none bg-gold px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:bg-gold/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream"
                   >
                     {site.hero.primaryCta}
                   </button>
 
                   <Link
                     to="/services"
-                    className="flex items-center gap-2 rounded-none border border-ink/30 bg-cream/70 px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:border-gold/60 hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                    className="flex items-center gap-2 rounded-none border border-cream/25 bg-transparent px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-cream transition hover:border-gold/60 hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream"
                   >
                     {site.hero.secondaryCta} <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+
+                <div className="mt-10">
+                  <Hairline className="bg-cream/20" />
+                  <div className="mt-4 grid gap-6 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Kicker label="Cuisine" className="text-cream/65" />
+                      <p className="text-sm text-cream/80">
+                        Seasonal menus built around local ingredients and clean presentation.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Kicker label="Service" className="text-cream/65" />
+                      <p className="text-sm text-cream/80">
+                        Calm, precise hospitality — intimate dinners to large celebrations.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Kicker label="Production" className="text-cream/65" />
+                      <p className="text-sm text-cream/80">
+                        Seamless logistics across venues, villas, and private estates.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* “Issue footer” */}
+              <div className="mt-12 text-[11px] uppercase tracking-[0.32em] text-cream/55">
+                Issue 01 • Private catering • Cyprus
+              </div>
+            </div>
+          </Container>
+        </div>
+      </section>
+
+      {/* TOC / INDEX (less “card grid”, more editorial) */}
+      <Section className="bg-cream" pad="py-14 md:py-18">
+        <Container>
+          <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+            <div>
+              <Kicker label="Contents" className="text-muted" />
+              <h2 className="mt-5 font-display text-3xl text-ink md:text-4xl">
+                A catering portfolio built like a magazine
+              </h2>
+              <p className="mt-4 max-w-2xl text-sm text-muted md:text-base">
+                Clear sections. Strong imagery. Minimal framing. Everything designed to feel premium and
+                effortless.
+              </p>
+
+              <div className="mt-8">
+                <Hairline />
+                <ol className="mt-6 space-y-5">
+                  {servicesPreview.map((s, i) => (
+                    <li key={s.id} className="group">
+                      <Link to="/services" className="block">
+                        <div className="flex items-start justify-between gap-6">
+                          <div className="flex items-baseline gap-4">
+                            <span className="text-[11px] uppercase tracking-[0.32em] text-muted">
+                              {String(i + 1).padStart(2, "0")}
+                            </span>
+                            <div>
+                              <div className="text-lg font-semibold text-ink group-hover:text-gold">
+                                {s.name}
+                              </div>
+                              <div className="mt-1 text-sm text-muted">
+                                {s.description}
+                              </div>
+                            </div>
+                          </div>
+                          <ArrowRight className="mt-1 h-4 w-4 text-ink/35 transition group-hover:text-gold" />
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+                <div className="mt-8">
+                  <Link
+                    to="/services"
+                    className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-gold hover:text-ink"
+                  >
+                    View all services <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
               </div>
             </div>
 
-            {/* Brochure panel */}
-            <div className="lg:col-span-5">
-              <div className="border border-line bg-white/85 p-7">
-                <Eyebrow>At a glance</Eyebrow>
+            {/* Right column “featured image + caption”, no box borders */}
+            <div className="space-y-4">
+              <div className="overflow-hidden">
+                <img
+                  src={featuredService?.image ?? site.hero.image}
+                  alt={featuredService?.name ?? "Signature service"}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-[360px] w-full object-cover sm:h-[440px]"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-6">
+                <div className="text-[11px] uppercase tracking-[0.32em] text-muted">
+                  Featured
+                </div>
+                <div className="text-sm font-semibold text-ink">
+                  {featuredService?.name ?? "Signature experience"}
+                </div>
+              </div>
+              <Hairline />
+              <div className="text-sm text-muted">
+                {featuredService?.description ??
+                  "A signature experience crafted around your setting, guest count, and pace of the day."}
+              </div>
+            </div>
+          </div>
+        </Container>
+      </Section>
 
-                <div className="mt-6 grid gap-5">
-                  <div className="border border-line bg-cream p-5">
-                    <p className="text-xs uppercase tracking-[0.4em] text-muted">Menus</p>
-                    <p className="mt-2 text-sm text-ink/75">
-                      Seasonal, bespoke menus with refined plating and confident flavour.
-                    </p>
+      {/* FULL-BLEED MOSAIC BREAK */}
+      <EditorialMosaic images={spreadA} caption="Plates, places, and the pace of service" tone="white" />
+
+      {/* SERVICES — FEATURE + LIST (no card boxes) */}
+      <Section className="bg-white">
+        <Container>
+          <div className="grid gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+            {/* Featured */}
+            <div className="space-y-5">
+              <Kicker label="01 • Services" className="text-muted" />
+              <h2 className="font-display text-3xl text-ink md:text-4xl">
+                Designed menus. Calm delivery.
+              </h2>
+              <p className="max-w-2xl text-sm text-muted md:text-base">
+                From intimate villa dinners to large celebrations — we build the menu and the flow around
+                the moment, not a template.
+              </p>
+
+              <div className="overflow-hidden">
+                <img
+                  src={featuredService?.image ?? site.hero.image}
+                  alt={featuredService?.name ?? "Featured service"}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-[420px] w-full object-cover sm:h-[520px]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div className="text-lg font-semibold text-ink">
+                    {featuredService?.name ?? "Signature service"}
                   </div>
-
-                  <div className="border border-line bg-cream p-5">
-                    <p className="text-xs uppercase tracking-[0.4em] text-muted">Service</p>
-                    <p className="mt-2 text-sm text-ink/75">
-                      Calm front-of-house, precise timing, and discreet coordination.
-                    </p>
-                  </div>
-
-                  <div className="border border-line bg-cream p-5">
-                    <p className="text-xs uppercase tracking-[0.4em] text-muted">Events</p>
-                    <p className="mt-2 text-sm text-ink/75">
-                      Weddings, villas, yachts, and private estates across Cyprus.
-                    </p>
+                  <div className="mt-2 text-sm text-muted">
+                    {featuredService?.description ??
+                      "A signature experience that sets the tone for your celebration."}
                   </div>
                 </div>
+                <Link
+                  to="/services"
+                  className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-gold hover:text-ink"
+                >
+                  Explore services <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
 
-                <div className="mt-7 border-t border-line pt-6">
-                  <button
-                    type="button"
-                    onClick={() => openModal()}
-                    className="w-full rounded-none bg-ink px-6 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-cream transition hover:bg-ink/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                  >
-                    Start an enquiry
-                  </button>
+            {/* List */}
+            <div className="space-y-6">
+              <Hairline />
+              <div className="space-y-6">
+                {otherServices.map((s) => (
+                  <Link key={s.id} to="/services" className="group block">
+                    <div className="grid gap-4 sm:grid-cols-[120px_1fr] sm:items-start">
+                      <div className="overflow-hidden">
+                        <img
+                          src={s.image}
+                          alt={s.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-[110px] w-full object-cover sm:h-[120px]"
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="text-sm font-semibold text-ink group-hover:text-gold">
+                            {s.name}
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-ink/35 group-hover:text-gold" />
+                        </div>
+                        <div className="mt-2 text-sm text-muted">{s.description}</div>
+                      </div>
+                    </div>
+                    <div className="mt-6">
+                      <Hairline />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              <div className="pt-2">
+                <Kicker label="At a glance" className="text-muted" />
+                <div className="mt-6">
+                  <StatRail items={stats} />
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </Container>
+      </Section>
 
-      {/* SPREAD BREAK (small “print insert”) */}
-      <FullSpreadBreak images={spreadHero} caption="Selected plates & moments" tone="white" />
+      {/* SMALL STRIP BREAK */}
+      {spreadB.length ? (
+        <EditorialMosaic images={spreadB} caption="A tighter cut" tone="cream" />
+      ) : null}
 
-      {/* SIGNATURE STRIP (brand identity anchors) */}
-      <section className="border-b border-line bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-14">
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="border border-line bg-cream p-6">
-              <p className="text-xs uppercase tracking-[0.4em] text-muted">Cuisine</p>
-              <p className="mt-2 text-sm text-ink/75">
-                Local ingredients, modern technique, clean presentation.
-              </p>
-            </div>
-            <div className="border border-line bg-cream p-6">
-              <p className="text-xs uppercase tracking-[0.4em] text-muted">Hospitality</p>
-              <p className="mt-2 text-sm text-ink/75">
-                Warm service with premium standards — calm and precise.
-              </p>
-            </div>
-            <div className="border border-line bg-cream p-6">
-              <p className="text-xs uppercase tracking-[0.4em] text-muted">Production</p>
-              <p className="mt-2 text-sm text-ink/75">
-                Seamless logistics for villas, venues, yachts, and estates.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SERVICES (editorial: featured + index list) */}
-      <Section className="bg-cream">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <div className="max-w-2xl">
-              <Eyebrow>Services</Eyebrow>
-              <h2 className="mt-5 font-display text-3xl text-ink md:text-4xl">
-                A curated catering portfolio
+      {/* PROOF / BADGES — no boxed tiles, just a clean logo field */}
+      <Section className="bg-sand">
+        <Container>
+          <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+            <div className="space-y-5">
+              <Kicker label="02 • Premium proof" className="text-muted" />
+              <h2 className="font-display text-3xl text-ink md:text-4xl">
+                Trusted by venues that care about detail
               </h2>
-              <p className="mt-4 max-w-xl text-sm text-muted md:text-base">
-                Designed like a menu: clear sections, signature highlights, and a seamless flow.
+              <p className="max-w-2xl text-sm text-muted md:text-base">
+                Partnerships and repeat clients come from consistency — timing, temperature, and a team
+                that moves quietly.
               </p>
+
+              <div className="pt-2">
+                <Link
+                  to="/partners"
+                  className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-gold hover:text-ink"
+                >
+                  View partners <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
             </div>
 
-            <Link
-              to="/services"
-              className="text-xs font-semibold uppercase tracking-[0.22em] text-gold hover:text-ink"
-            >
-              View all services
-            </Link>
-          </div>
-
-          <div className="mt-10 grid gap-6 lg:grid-cols-12">
-            {/* Featured */}
-            {featuredService ? (
-              <article className="border border-line bg-white p-6 lg:col-span-7">
-                <div className="grid gap-6 md:grid-cols-12 md:items-stretch">
-                  <div className="md:col-span-7">
-                    <div className="aspect-[4/3] overflow-hidden border border-line bg-cream">
+            <div>
+              <Hairline />
+              <div className="mt-8 grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3">
+                {badges.map((b) => (
+                  <div key={b.label} className="space-y-3">
+                    <div className="h-14 w-14 overflow-hidden bg-cream">
                       <img
-                        src={featuredService.image}
-                        alt={featuredService.name}
+                        src={b.image}
+                        alt={b.label}
                         loading="lazy"
                         decoding="async"
                         className="h-full w-full object-cover"
                       />
                     </div>
-                  </div>
-
-                  <div className="md:col-span-5">
-                    <p className="text-xs uppercase tracking-[0.4em] text-gold">Featured</p>
-                    <h3 className="mt-3 font-display text-2xl text-ink">{featuredService.name}</h3>
-                    <p className="mt-3 text-sm text-muted">{featuredService.description}</p>
-
-                    <div className="mt-6 border-t border-line pt-5">
-                      <div className="grid gap-3 text-[11px] uppercase tracking-[0.28em] text-ink/70">
-                        <span className="inline-flex items-center gap-2">
-                          <span className="h-1 w-1 bg-gold" /> Bespoke menu planning
-                        </span>
-                        <span className="inline-flex items-center gap-2">
-                          <span className="h-1 w-1 bg-gold" /> Staffing & service
-                        </span>
-                        <span className="inline-flex items-center gap-2">
-                          <span className="h-1 w-1 bg-gold" /> Presentation & detail
-                        </span>
-                      </div>
-
-                      <Link
-                        to="/services"
-                        className="mt-6 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-gold hover:text-ink"
-                      >
-                        Explore services <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </article>
-            ) : null}
-
-            {/* Index list */}
-            <aside className="border border-line bg-white p-6 lg:col-span-5">
-              <Eyebrow>Service index</Eyebrow>
-
-              <div className="mt-6 grid gap-4">
-                {secondaryServices.map((s) => (
-                  <div key={s.id} className="grid grid-cols-[88px_1fr] gap-4 border border-line bg-cream p-4">
-                    <div className="aspect-[4/3] overflow-hidden border border-line bg-white">
-                      <img
-                        src={s.image}
-                        alt={s.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-ink">{s.name}</p>
-                      <p className="mt-1 text-xs text-muted line-clamp-2">{s.description}</p>
+                    <div className="text-[11px] uppercase tracking-[0.28em] text-ink/70">
+                      {b.label}
                     </div>
                   </div>
                 ))}
               </div>
-
-              <div className="mt-6 border-t border-line pt-6">
-                <button
-                  type="button"
-                  onClick={() => openModal()}
-                  className="w-full rounded-none bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:bg-gold/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                >
-                  Get a quote
-                </button>
-              </div>
-            </aside>
+            </div>
           </div>
-        </div>
+        </Container>
       </Section>
 
-      {/* PROOF / BADGES (clean, aligned) */}
-      <section className="border-y border-line bg-sand">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24">
-          <div className="grid gap-10 md:grid-cols-[1.2fr_1fr] md:items-start">
-            <div>
-              <Eyebrow>Premium proof</Eyebrow>
-              <h2 className="mt-5 font-display text-3xl text-ink md:text-4xl">
-                Trusted by Cyprus’ finest venues
-              </h2>
-              <p className="mt-4 max-w-xl text-sm text-muted md:text-base">
-                High standards, clear communication, and a calm service rhythm from start to finish.
-              </p>
-
-              {/* Micro “brand identity” rail */}
-              <div className="mt-8 grid gap-3 border-l border-line pl-5 text-[11px] uppercase tracking-[0.28em] text-ink/70">
-                <span>• Tastings & menu design</span>
-                <span>• Staffed service & coordination</span>
-                <span>• Cyprus-wide logistics</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              {badges.map((badge) => (
-                <div key={badge.label} className="border border-line bg-white p-5">
-                  <div className="flex items-center gap-4">
-                    <div className="aspect-square w-16 overflow-hidden border border-line bg-cream">
-                      <img
-                        src={badge.image}
-                        alt={badge.label}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-ink/70">{badge.label}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SPREAD BREAK (odd-friendly 5-tile) */}
-      <FullSpreadBreak images={spreadMid} caption="Venue, team, signature" tone="cream" />
-
-      {/* PROCESS (magazine steps) */}
+      {/* TEAM + TESTIMONIALS — minimal framing */}
       <Section className="bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid gap-10 lg:grid-cols-12 lg:items-start">
-            <div className="lg:col-span-5">
-              <Eyebrow>The process</Eyebrow>
-              <h2 className="mt-5 font-display text-3xl text-ink md:text-4xl">
-                Built for calm planning
-              </h2>
-              <p className="mt-4 max-w-md text-sm text-muted md:text-base">
-                Clear steps, decisive guidance, and a service plan that makes the day feel effortless.
-              </p>
-
-              <button
-                type="button"
-                onClick={() => openModal()}
-                className="mt-8 rounded-none bg-gold px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:bg-gold/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-              >
-                Start planning
-              </button>
-            </div>
-
-            <div className="lg:col-span-7">
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="border border-line bg-cream p-6">
-                  <p className="text-xs uppercase tracking-[0.4em] text-muted">01</p>
-                  <p className="mt-3 text-sm font-semibold text-ink">Enquiry & vision</p>
-                  <p className="mt-2 text-sm text-muted">
-                    Guest count, style, venue — we map the experience and the flow.
-                  </p>
-                </div>
-                <div className="border border-line bg-cream p-6">
-                  <p className="text-xs uppercase tracking-[0.4em] text-muted">02</p>
-                  <p className="mt-3 text-sm font-semibold text-ink">Menu design</p>
-                  <p className="mt-2 text-sm text-muted">
-                    A tailored menu with signature touches and clean presentation.
-                  </p>
-                </div>
-                <div className="border border-line bg-cream p-6">
-                  <p className="text-xs uppercase tracking-[0.4em] text-muted">03</p>
-                  <p className="mt-3 text-sm font-semibold text-ink">Event execution</p>
-                  <p className="mt-2 text-sm text-muted">
-                    Staffed service, timing, and coordination — delivered with calm.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      {/* TEAM + TESTIMONIALS (tight, premium) */}
-      <Section className="bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]">
+        <Container>
+          <div className="grid gap-14 lg:grid-cols-[1.1fr_0.9fr]">
+            {/* Team as “contact sheet” */}
             <div>
-              <Eyebrow>Our team</Eyebrow>
+              <Kicker label="03 • Our team" className="text-muted" />
               <h2 className="mt-5 font-display text-3xl text-ink md:text-4xl">
-                Crafted by culinary leaders
+                Built by culinary leaders
               </h2>
-              <p className="mt-4 max-w-xl text-sm text-muted md:text-base">
-                A team that blends local ingredients, modern technique, and refined hospitality.
+              <p className="mt-4 max-w-2xl text-sm text-muted md:text-base">
+                A focused team blending local ingredients, modern technique, and refined hospitality.
               </p>
 
               <div className="mt-10 grid gap-6 sm:grid-cols-2">
-                {teamPreview.map((member) => (
-                  <div key={member.name} className="border border-line bg-white p-5">
-                    <div className="aspect-[4/5] overflow-hidden border border-line bg-cream">
+                {team.slice(0, 4).map((m) => (
+                  <div key={m.name} className="space-y-4">
+                    <div className="overflow-hidden bg-cream">
                       <img
-                        src={member.image}
-                        alt={member.name}
+                        src={m.image}
+                        alt={m.name}
                         loading="lazy"
                         decoding="async"
-                        className="h-full w-full object-cover"
+                        className="h-[340px] w-full object-cover sm:h-[380px]"
                       />
                     </div>
-                    <h3 className="mt-4 text-sm font-semibold text-ink">{member.name}</h3>
-                    <p className="mt-1 text-xs uppercase tracking-[0.22em] text-gold">{member.role}</p>
+                    <div>
+                      <div className="text-sm font-semibold text-ink">{m.name}</div>
+                      <div className="mt-1 text-[11px] uppercase tracking-[0.28em] text-gold">
+                        {m.role}
+                      </div>
+                    </div>
+                    <Hairline />
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="border border-line bg-white p-7 md:p-10">
-              <Eyebrow>Testimonials</Eyebrow>
+            {/* Testimonials as editorial quotes */}
+            <div>
+              <Kicker label="Client notes" className="text-muted" />
               <h3 className="mt-5 font-display text-2xl text-ink md:text-3xl">
-                What clients remember
+                What guests remember
               </h3>
+              <p className="mt-4 text-sm text-muted md:text-base">
+                The small details: pacing, warmth, and the feeling that everything was handled.
+              </p>
 
-              <div className="mt-8 grid gap-6">
-                {testimonialsPreview.map((t) => (
-                  <div key={t.name} className="border border-line bg-sand px-6 py-6">
-                    <p className="text-sm text-ink/80">“{t.quote}”</p>
-                    <div className="mt-5 flex items-center gap-3">
+              <div className="mt-10 space-y-10">
+                {testimonials.slice(0, 3).map((t) => (
+                  <div key={t.name} className="grid gap-5">
+                    <div className="border-l border-line pl-5">
+                      <p className="text-sm leading-relaxed text-ink/80">“{t.quote}”</p>
+                    </div>
+                    <div className="flex items-center gap-4">
                       <img
                         src={t.image}
                         alt={t.name}
                         loading="lazy"
                         decoding="async"
-                        width={40}
-                        height={40}
                         className="h-10 w-10 border border-line object-cover"
                       />
                       <div>
-                        <p className="text-xs font-semibold text-ink">{t.name}</p>
-                        <p className="mt-1 text-[11px] uppercase tracking-[0.22em] text-muted">
+                        <div className="text-xs font-semibold text-ink">{t.name}</div>
+                        <div className="mt-1 text-[11px] uppercase tracking-[0.28em] text-muted">
                           {t.role}
-                        </p>
+                        </div>
                       </div>
                     </div>
+                    <Hairline />
                   </div>
                 ))}
               </div>
@@ -560,70 +598,89 @@ const Home = () => {
               </Link>
             </div>
           </div>
-        </div>
+        </Container>
       </Section>
 
-      {/* PARTNER HIGHLIGHT */}
-      <section className="border-y border-line bg-sand">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-24">
-          <div className="grid gap-10 lg:grid-cols-[1.2fr_1fr] lg:items-center">
-            <div>
-              <Eyebrow>Partner highlight</Eyebrow>
-              <h2 className="mt-5 font-display text-3xl text-ink md:text-4xl">
-                {partner?.name ?? "Featured venue partner"}
+      {/* PARTNER — big image, minimal framing */}
+      <section className="relative bg-neutral-950">
+        <div className="absolute inset-0">
+          <img
+            src={partnerImg}
+            alt={partner0?.name ?? "Partner venue"}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-b from-neutral-950/35 via-neutral-950/50 to-neutral-950/85" />
+
+        <Container>
+          <div className="relative py-16 md:py-24">
+            <div className="max-w-2xl">
+              <Kicker label="Partner highlight" className="text-cream/70" />
+              <h2 className="mt-5 font-display text-3xl text-cream md:text-4xl">
+                {partner0?.name ?? "Featured venue"}
               </h2>
-              <p className="mt-4 max-w-xl text-sm text-muted md:text-base">
-                {partner?.story ??
-                  "We work closely with Cyprus’ finest venues to deliver seamless service, perfect timing, and an elevated guest experience."}
+              <p className="mt-4 text-sm text-cream/80 md:text-base">
+                {partner0?.story ??
+                  "A venue we love working with — for its pace, setting, and attention to detail."}
               </p>
 
-              <Link
-                to="/partners"
-                className="mt-8 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-gold hover:text-ink"
-              >
-                Discover our partners <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
+              <div className="mt-8 flex flex-wrap gap-4">
+                <Link
+                  to="/partners"
+                  className="inline-flex items-center gap-2 rounded-none bg-gold px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:bg-gold/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream"
+                >
+                  Discover partners <ArrowRight className="h-4 w-4" />
+                </Link>
 
-            <div className="overflow-hidden border border-line bg-white">
-              <img
-                src={partner?.images?.[0] ?? site.hero.image}
-                alt={partner?.name ?? "Venue partner"}
-                loading="lazy"
-                decoding="async"
-                width={900}
-                height={675}
-                className="h-[320px] w-full object-cover sm:h-[380px] md:h-[440px]"
-              />
+                <button
+                  type="button"
+                  onClick={() => openModal()}
+                  className="inline-flex items-center gap-2 rounded-none border border-cream/25 bg-transparent px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-cream transition hover:border-gold/60 hover:text-gold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cream"
+                >
+                  Start an enquiry <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </Container>
       </section>
 
-      {/* FINAL CTA */}
-      <section className="bg-white py-16 md:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="border border-line bg-gold px-7 py-10 text-ink md:px-14 md:py-14">
-            <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
+      {/* FINAL CTA — keep it bold, keep it clean */}
+      <Section className="bg-white" pad="py-16 md:py-24">
+        <Container>
+          <div className="bg-gold px-7 py-10 text-ink md:px-14 md:py-14">
+            <div className="grid gap-8 md:grid-cols-[1.2fr_0.8fr] md:items-center">
               <div className="max-w-2xl">
-                <p className="text-xs uppercase tracking-[0.4em] text-ink/60">Final call</p>
-                <h2 className="mt-3 font-display text-3xl md:text-4xl">Plan your next event</h2>
-                <p className="mt-3 text-sm text-ink/70 md:text-base">
-                  Tell us the vision and we’ll shape the menu, service, and details around it.
+                <Kicker label="Final call" className="text-ink/60" />
+                <h2 className="mt-4 font-display text-3xl md:text-4xl">
+                  Plan your next event
+                </h2>
+                <p className="mt-4 text-sm text-ink/70 md:text-base">
+                  Tell us the vision — we’ll shape the menu, service, and details around it.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => openModal()}
-                className="rounded-none bg-ink px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-cream transition hover:bg-ink/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-              >
-                Start an enquiry
-              </button>
+              <div className="flex flex-col gap-4 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => openModal()}
+                  className="rounded-none bg-ink px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-cream transition hover:bg-ink/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                >
+                  Start an enquiry
+                </button>
+                <Link
+                  to="/services"
+                  className="rounded-none border border-ink/30 bg-transparent px-7 py-3 text-xs font-semibold uppercase tracking-[0.22em] text-ink transition hover:border-ink hover:bg-ink/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                >
+                  View services
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </Container>
+      </Section>
     </div>
   );
 };
